@@ -17,15 +17,15 @@ logger = logging.getLogger(__name__)
 # --- Конфиг (берём из переменных окружения, см. .env) ---
 load_dotenv()
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
-MODEL = "deepseek-chat"  # есть также "deepseek-reasoner" (модель с рассуждениями)
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+MODEL = "llama-3.3-70b-versatile"  # мощная бесплатная модель на Groq
 
 if not TELEGRAM_TOKEN:
     raise RuntimeError("Не задан TELEGRAM_TOKEN (см. .env)")
-if not DEEPSEEK_API_KEY:
-    raise RuntimeError("Не задан DEEPSEEK_API_KEY (см. .env)")
+if not GROQ_API_KEY:
+    raise RuntimeError("Не задан GROQ_API_KEY (см. .env)")
 
-DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions"
+GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 # Храним историю диалога отдельно для каждого чата (в памяти, без базы данных)
 chat_histories: dict[int, list[dict]] = {}
@@ -39,7 +39,7 @@ MAX_HISTORY_MESSAGES = 20  # сколько последних сообщени�
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_histories[update.effective_chat.id] = []
     await update.message.reply_text(
-        "Привет! Я ИИ-бот на базе DeepSeek. Просто напиши мне что-нибудь.\n"
+        "Привет! Я ИИ-бот на базе Groq (Llama 3.3). Просто напиши мне что-нибудь.\n"
         "/reset — очистить историю диалога"
     )
 
@@ -61,9 +61,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     try:
         resp = requests.post(
-            DEEPSEEK_API_URL,
+            GROQ_API_URL,
             headers={
-                "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
+                "Authorization": f"Bearer {GROQ_API_KEY}",
                 "Content-Type": "application/json",
             },
             json={
@@ -77,7 +77,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         data = resp.json()
         reply_text = data["choices"][0]["message"]["content"]
     except Exception as e:
-        logger.exception("Ошибка при обращении к DeepSeek API")
+        logger.exception("Ошибка при обращении к Groq API")
         reply_text = f"Произошла ошибка при обращении к ИИ: {e}"
 
     history.append({"role": "assistant", "content": reply_text})
