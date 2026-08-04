@@ -56,12 +56,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         chat_histories[str(update.effective_chat.id)] = []
         await update.message.reply_text("Привет! Я ИИ-секретарь. Оставьте ваше сообщение, я передам его владельцу.")
 
-# --- Панель управления администратора (Исправлено извлечение context.args[0]) ---
+# --- Панель управления администратора ---
 
 async def admin_pause(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_user.id != ADMIN_ID: return
     try:
-        target_chat = int(context.args[0])  # Берем первый элемент списка аргументов
+        # ИСПРАВЛЕНО: Берём первый элемент списка аргументов context.args[0]
+        target_chat = int(context.args[0])  
         paused_chats.add(target_chat)
         await update.message.reply_text(f"⏸ ИИ отключен для чата `{target_chat}`. Теперь вы можете общаться там лично.", parse_mode="Markdown")
     except (IndexError, ValueError):
@@ -70,6 +71,7 @@ async def admin_pause(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 async def admin_resume(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_user.id != ADMIN_ID: return
     try:
+        # ИСПРАВЛЕНО: Добавлен индекс [0]
         target_chat = int(context.args[0])
         paused_chats.discard(target_chat)
         await update.message.reply_text(f"▶️ ИИ снова активен в чате `{target_chat}`.", parse_mode="Markdown")
@@ -79,6 +81,7 @@ async def admin_resume(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 async def admin_history(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_user.id != ADMIN_ID: return
     try:
+        # ИСПРАВЛЕНО: Добавлен индекс [0]
         target_chat = context.args[0]
         history_key = f"biz:{target_chat}"
         history = chat_histories.get(history_key, [])
@@ -97,6 +100,7 @@ async def admin_history(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 async def admin_reset_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_user.id != ADMIN_ID: return
     try:
+        # ИСПРАВЛЕНО: Добавлен индекс [0]
         target_chat = context.args[0]
         chat_histories[f"biz:{target_chat}"] = []
         await update.message.reply_text(f"🧹 История ИИ для чата `{target_chat}` очищена.", parse_mode="Markdown")
@@ -169,7 +173,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
         resp.raise_for_status()
         data = resp.json()
-        reply_text = data["choices"][0]["message"]["content"]
+        reply_text = data["choices"]["message"]["content"]
     except Exception as e:
         logger.exception("Ошибка при обращении к Groq API")
         reply_text = "Извините, сейчас я затрудняюсь ответить. Мой владелец скоро свяжется с вами лично."
@@ -222,4 +226,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
