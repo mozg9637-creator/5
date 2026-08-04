@@ -59,9 +59,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 # --- Панель управления администратора ---
 
 async def admin_pause(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_user.id != ADMIN_ID: return
+    if update.effective_user.id != ADMIN_ID: 
+        return
     try:
-        # ИСПРАВЛЕНО: Берём первый элемент списка аргументов context.args[0]
         target_chat = int(context.args[0])  
         paused_chats.add(target_chat)
         await update.message.reply_text(f"⏸ ИИ отключен для чата `{target_chat}`. Теперь вы можете общаться там лично.", parse_mode="Markdown")
@@ -69,9 +69,9 @@ async def admin_pause(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await update.message.reply_text("Использование: `/pause_ai ЧАТ_ID`")
 
 async def admin_resume(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_user.id != ADMIN_ID: return
+    if update.effective_user.id != ADMIN_ID: 
+        return
     try:
-        # ИСПРАВЛЕНО: Добавлен индекс [0]
         target_chat = int(context.args[0])
         paused_chats.discard(target_chat)
         await update.message.reply_text(f"▶️ ИИ снова активен в чате `{target_chat}`.", parse_mode="Markdown")
@@ -79,9 +79,9 @@ async def admin_resume(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         await update.message.reply_text("Использование: `/resume_ai ЧАТ_ID`")
 
 async def admin_history(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_user.id != ADMIN_ID: return
+    if update.effective_user.id != ADMIN_ID: 
+        return
     try:
-        # ИСПРАВЛЕНО: Добавлен индекс [0]
         target_chat = context.args[0]
         history_key = f"biz:{target_chat}"
         history = chat_histories.get(history_key, [])
@@ -98,9 +98,9 @@ async def admin_history(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         await update.message.reply_text("Использование: `/history ЧАТ_ID`")
 
 async def admin_reset_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.effective_user.id != ADMIN_ID: return
+    if update.effective_user.id != ADMIN_ID: 
+        return
     try:
-        # ИСПРАВЛЕНО: Добавлен индекс [0]
         target_chat = context.args[0]
         chat_histories[f"biz:{target_chat}"] = []
         await update.message.reply_text(f"🧹 История ИИ для чата `{target_chat}` очищена.", parse_mode="Markdown")
@@ -111,55 +111,19 @@ async def admin_reset_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     message = update.effective_message
+    if not message or not message.text:
+        return
+        
     chat_id = message.chat_id
     user_text = message.text
     business_connection_id = getattr(message, "business_connection_id", None)
 
-    # 1. Если это ваше личное сообщение в бизнес-чате — заносим его в память ИИ как ответ
-    if business_connection_id and message.from_user.id == ADMIN_ID:
-        history_key = f"biz:{chat_id}"
-        history = chat_histories.setdefault(history_key, [])
-        history.append({"role": "assistant", "content": user_text})
-        history[:] = history[-MAX_HISTORY_MESSAGES:]
-        return
-
-    # 2. Проверяем, не выключен ли ИИ для этого человека
-    if chat_id in paused_chats:
-        return
-
-    # 3. Формируем ключ истории диалога
-    history_key = f"biz:{chat_id}" if business_connection_id else str(chat_id)
-    history = chat_histories.setdefault(history_key, [])
-    history.append({"role": "user", "content": user_text})
-    history[:] = history[-MAX_HISTORY_MESSAGES:]
-
-    # 4. Уведомление в личку бота админу о входящем запросе
-    if business_connection_id:
-        try:
-            await context.bot.send_message(
-                chat_id=ADMIN_ID,
-                text=f"🔔 **Новый диалог в Telegram Business!**\n"
-                     f"Чат ID: `{chat_id}`\n"
-                     f"Имя: {message.from_user.full_name}\n"
-                     f"Текст: *{user_text}*",
-                parse_mode="Markdown"
-            )
-        except Exception:
-            pass
-
-    try:
-       async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    message = update.effective_message
-    chat_id = message.chat_id
-    user_text = message.text
-    business_connection_id = getattr(message, "business_connection_id", None)
-
-    # ИСПРАВЛЕНИЕ 1: Если вы пишете в ЛИЧКУ БОТА (не бизнес-чат) обычный текст — ИИ отвечать не должен!
+    # Если вы пишете в ЛИЧКУ БОТА (не бизнес-чат) обычный текст — ИИ отвечать не должен
     if not business_connection_id and message.from_user.id == ADMIN_ID:
         await message.reply_text("💡 Босс, для управления используйте команды. Обычный текст в моей личке ИИ не обрабатывает.")
         return
 
-    # 1. Если это ваше личное сообщение в БИЗНЕС-ЧАТЕ (вы сами отвечаете клиенту) — заносим в память ИИ как ответ
+    # Если это ваше личное сообщение в БИЗНЕС-ЧАТЕ (вы сами отвечаете клиенту) — заносим в память ИИ как ответ
     if business_connection_id and message.from_user.id == ADMIN_ID:
         history_key = f"biz:{chat_id}"
         history = chat_histories.setdefault(history_key, [])
@@ -167,17 +131,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         history[:] = history[-MAX_HISTORY_MESSAGES:]
         return
 
-    # 2. Проверяем, не выключен ли ИИ для этого человека
+    # Проверяем, не выключен ли ИИ для этого человека
     if chat_id in paused_chats:
         return
 
-    # 3. Формируем ключ истории диалога (ИСПРАВЛЕНИЕ 2: приводим все ключи к единому str типу)
+    # Формируем ключ истории диалога
     history_key = f"biz:{chat_id}" if business_connection_id else f"user:{chat_id}"
     history = chat_histories.setdefault(history_key, [])
     history.append({"role": "user", "content": user_text})
     history[:] = history[-MAX_HISTORY_MESSAGES:]
 
-    # 4. Уведомление в личку бота админу о входящем запросе от клиента
+    # Уведомление в личку бота админу о входящем запросе от клиента
     if business_connection_id:
         try:
             await context.bot.send_message(
@@ -200,7 +164,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     except Exception:
         pass
 
-    # 5. Запрос к Groq API
+    # Запрос к Groq API
     try:
         resp = requests.post(
             GROQ_API_URL,
@@ -217,14 +181,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
         resp.raise_for_status()
         data = resp.json()
-        reply_text = data["choices"][0]["message"]["content"]
+        reply_text = data["choices"]["message"]["content"]
     except Exception as e:
         logger.exception("Ошибка при обращении к Groq API")
         reply_text = "Извините, сейчас я затрудняюсь ответить. Мой владелец скоро свяжется с вами лично."
 
     history.append({"role": "assistant", "content": reply_text})
 
-    # 6. Отправка ответа
+    # Отправка ответа
     if business_connection_id:
         await context.bot.send_message(
             chat_id=chat_id,
@@ -234,7 +198,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     else:
         await message.reply_text(reply_text)
 
-
 # --- Настройка Health-check (Render) ---
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -242,7 +205,8 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         self.send_header("Content-type", "text/plain")
         self.end_headers()
         self.wfile.write(b"Bot is running")
-    def log_message(self, format, *args): pass
+    def log_message(self, format, *args): 
+        pass
 
 def run_health_server():
     port = int(os.getenv("PORT", 10000))
