@@ -75,6 +75,25 @@ async def admin_resume(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     except (IndexError, ValueError):
         await update.message.reply_text("Использование: `/resume_ai ЧАТ_ID`")
 
+async def admin_pause(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != ADMIN_ID: return
+    try:
+        # Извлекаем первый аргумент из списка context.args
+        target_chat = int(context.args[0])
+        paused_chats.add(target_chat)
+        await update.message.reply_text(f"⏸ ИИ отключен для чата `{target_chat}`. Теперь вы можете общаться там лично.", parse_mode="Markdown")
+    except (IndexError, ValueError):
+        await update.message.reply_text("Использование: `/pause_ai ЧАТ_ID`")
+
+async def admin_resume(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.effective_user.id != ADMIN_ID: return
+    try:
+        target_chat = int(context.args[0])
+        paused_chats.discard(target_chat)
+        await update.message.reply_text(f"▶️ ИИ снова активен в чате `{target_chat}`.", parse_mode="Markdown")
+    except (IndexError, ValueError):
+        await update.message.reply_text("Использование: `/resume_ai ЧАТ_ID`")
+
 async def admin_history(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_user.id != ADMIN_ID: return
     try:
@@ -86,7 +105,7 @@ async def admin_history(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             return
         
         text = f"📜 **История чата {target_chat}:**\n\n"
-        for msg in history[-10:]:  # Показывать только последние 10 реплик для читаемости
+        for msg in history[-10:]:
             role = "🤖 ИИ" if msg["role"] == "assistant" else "👤 Юзер"
             text += f"**{role}**: {msg['content']}\n"
         await update.message.reply_text(text, parse_mode="Markdown")
@@ -101,6 +120,7 @@ async def admin_reset_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await update.message.reply_text(f"🧹 История ИИ для чата `{target_chat}` очищена.", parse_mode="Markdown")
     except IndexError:
         await update.message.reply_text("Использование: `/reset_chat ЧАТ_ID`")
+")
 
 # --- Основной обработчик сообщений ---
 
