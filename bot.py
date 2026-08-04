@@ -148,6 +148,50 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             pass
 
     try:
+       async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    message = update.effective_message
+    chat_id = message.chat_id
+    user_text = message.text
+    business_connection_id = getattr(message, "business_connection_id", None)
+
+    # ИСПРАВЛЕНИЕ 1: Если вы пишете в ЛИЧКУ БОТА (не бизнес-чат) обычный текст — ИИ отвечать не должен!
+    if not business_connection_id and message.from_user.id == ADMIN_ID:
+        await message.reply_text("💡 Босс, для управления используйте команды. Обычный текст в моей личке ИИ не обрабатывает.")
+        return
+
+    # 1. Если это ваше личное сообщение в БИЗНЕС-ЧАТЕ (вы сами отвечаете клиенту) — заносим в память ИИ как ответ
+    if business_connection_id and message.from_user.id == ADMIN_ID:
+        history_key = f"biz:{chat_id}"
+        history = chat_histories.setdefault(history_key, [])
+        history.append({"role": "assistant", "content": user_text})
+        history[:] = history[-MAX_HISTORY_MESSAGES:]
+        return
+
+    # 2. Проверяем, не выключен ли ИИ для этого человека
+    if chat_id in paused_chats:
+        return
+
+    # 3. Формируем ключ истории диалога (ИСПРАВЛЕНИЕ 2: приводим все ключи к единому str типу)
+    history_key = f"biz:{chat_id}" if business_connection_id else f"user:{chat_id}"
+    history = chat_histories.setdefault(history_key, [])
+    history.append({"role": "user", "content": user_text})
+    history[:] = history[-MAX_HISTORY_MESSAGES:]
+
+    # 4. Уведомление в личку бота админу о входящем запросе от клиента
+    if business_connection_id:
+        try:
+            await context.bot.send_message(
+                chat_id=ADMIN_ID,
+                text=f"🔔 **Новый диалог в Telegram Business!**\n"
+                     f"Чат ID: `{chat_id}`\n"
+                     f"Имя: {message.from_user.full_name}\n"
+                     f"Текст: *{user_text}*",
+                parse_mode="Markdown"
+            )
+        except Exception:
+            pass
+
+    try:
         await context.bot.send_chat_action(
             chat_id=chat_id,
             action="typing",
@@ -156,7 +200,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     except Exception:
         pass
 
-    # 5. Запрос к Groq API (Llama 3.3)
+    # 5. Запрос к Groq API
     try:
         resp = requests.post(
             GROQ_API_URL,
@@ -173,7 +217,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
         resp.raise_for_status()
         data = resp.json()
-        reply_text = data["choices"]["message"]["content"]
+        reply_text = data["choices"][0]["message"]["content"]
     except Exception as e:
         logger.exception("Ошибка при обращении к Groq API")
         reply_text = "Извините, сейчас я затрудняюсь ответить. Мой владелец скоро свяжется с вами лично."
@@ -189,6 +233,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
     else:
         await message.reply_text(reply_text)
+
 
 # --- Настройка Health-check (Render) ---
 class HealthCheckHandler(BaseHTTPRequestHandler):
