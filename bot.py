@@ -1,11 +1,11 @@
 import os
 import logging
 import threading
+import requests
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
-from openai import OpenAI
 
 # --- Настройка логирования ---
 logging.basicConfig(
@@ -25,9 +25,7 @@ if not TELEGRAM_TOKEN:
 if not DEEPSEEK_API_KEY:
     raise RuntimeError("Не задан DEEPSEEK_API_KEY (см. .env)")
 
-# DeepSeek API совместим по формату с OpenAI, поэтому используем OpenAI SDK
-# с указанием другого base_url
-client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com")
+DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions"
 
 # Храним историю диалога отдельно для каждого чата (в памяти, без базы данных)
 chat_histories: dict[int, list[dict]] = {}
@@ -62,12 +60,22 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     await context.bot.send_chat_action(chat_id=chat_id, action="typing")
 
     try:
-        response = client.chat.completions.create(
-            model=MODEL,
-            max_tokens=1024,
-            messages=[{"role": "system", "content": SYSTEM_PROMPT}] + history,
+        resp = requests.post(
+            DEEPSEEK_API_URL,
+            headers={
+                "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": MODEL,
+                "max_tokens": 1024,
+                "messages": [{"role": "system", "content": SYSTEM_PROMPT}] + history,
+            },
+            timeout=60,
         )
-        reply_text = response.choices[0].message.content
+        resp.raise_for_status()
+        data = resp.json()
+        reply_text = data["choices"][0]["message"]["content"]
     except Exception as e:
         logger.exception("Ошибка при обращении к DeepSeek API")
         reply_text = f"Произошла ошибка при обращении к ИИ: {e}"
