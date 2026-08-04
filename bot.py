@@ -31,7 +31,12 @@ GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 chat_histories: dict[int, list[dict]] = {}
 
 # Системный промпт — можно изменить под свои задачи
-SYSTEM_PROMPT = "Ты дружелюбный ассистент в Telegram. Отвечай кратко и по делу, на языке пользователя."
+SYSTEM_PROMPT = (
+    "Ты — личный секретарь пользователя, отвечающий от его имени в личных сообщениях Telegram. "
+    "Будь вежливым, кратким и естественным, как будто отвечает сам человек. "
+    "Если тебя спрашивают о чём-то, чего ты не знаешь (личные планы, договорённости, точная информация о пользователе), "
+    "честно скажи, что человек скоро ответит сам лично, вместо того чтобы придумывать ответ."
+)
 
 MAX_HISTORY_MESSAGES = 20  # сколько последних сообщений держим в памяти на чат
 
@@ -50,14 +55,27 @@ async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    chat_id = update.effective_chat.id
-    user_text = update.message.text
+    message = update.effective_message
+    chat_id = message.chat_id
+    user_text = message.text
+    # Если сообщение пришло через Telegram Business (пишут вам лично,
+    # а бот отвечает от вашего имени), у него будет заполнен business_connection_id
+    business_connection_id = getattr(message, "business_connection_id", None)
 
-    history = chat_histories.setdefault(chat_id, [])
+    # Отдельная история для бизнес-переписки, чтобы не путать с обычным диалогом с ботом
+    history_key = f"biz:{chat_id}" if business_connection_id else chat_id
+    history = chat_histories.setdefault(history_key, [])
     history.append({"role": "user", "content": user_text})
     history[:] = history[-MAX_HISTORY_MESSAGES:]  # обрезаем историю
 
-    await context.bot.send_chat_action(chat_id=chat_id, action="typing")
+    try:
+        await context.bot.send_chat_action(
+            chat_id=chat_id,
+            action="typing",
+            business_connection_id=business_connection_id,
+        )
+    except Exception:
+        pass  # не критично, если индикатор "печатает" не отправился
 
     try:
         resp = requests.post(
@@ -81,7 +99,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         reply_text = f"Произошла ошибка при обращении к ИИ: {e}"
 
     history.append({"role": "assistant", "content": reply_text})
-    await update.message.reply_text(reply_text)
+
+    if business_connection_id:
+        # Отправляем ответ от имени пользователя через Telegram Business
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=reply_text,
+            business_connection_id=business_connection_id,
+        )
+    else:
+        await message.reply_text(reply_text)
 
 
 class HealthCheckHandler(BaseHTTPRequestHandler):
@@ -116,7 +143,7 @@ def main() -> None:
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     logger.info("Бот запущен...")
-    app.run_polling()
+    app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
 if __name__ == "__main__":
