@@ -15,7 +15,7 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 if not TELEGRAM_TOKEN:
     raise RuntimeError("Не задан TELEGRAM_TOKEN")
 
-# Загружаем вашу модель
+# Загружаем вашу модель[cite: 2]
 MODEL_PATH = "NekoSSV1_0-F32-LoRA.gguf"
 logger.info("Загружаю NekoSSVv1.0...")
 model = AutoModelForCausalLM.from_pretrained(MODEL_PATH, model_type="mistral")
@@ -52,7 +52,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     history = chat_histories.setdefault(chat_id, [])
     history.append(user_text)
-    history = history[-10:]  # последние 10 сообщений
+    history = history[-10:]  # последние 10 сообщений[cite: 2]
 
     try:
         await context.bot.send_chat_action(chat_id=chat_id, action="typing")
