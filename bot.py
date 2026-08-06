@@ -22,7 +22,7 @@ MODEL_FILE = "NekoSSV1_0-F32-LoRA.gguf"
 logger.info("Загружаю модель с Hugging Face...")
 model = AutoModelForCausalLM.from_pretrained(
     MODEL_REPO, 
-    file_name=MODEL_FILE, 
+    model_file=MODEL_FILE,  # Заменили file_name на model_file
     model_type="llama"
 )
 logger.info("✓ Модель успешно загружена!")
