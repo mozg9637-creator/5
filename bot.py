@@ -16,14 +16,15 @@ if not TELEGRAM_TOKEN:
     raise RuntimeError("Не задан TELEGRAM_TOKEN")
 
 # Настройки для загрузки модели с Hugging Face
-MODEL_REPO = "fdvvfgr/dsvevf"
+MODEL_REPO = "fdvvfgr/dsvevf"[cite: 3]
+# Убедитесь, что имя файла в кавычках полностью совпадает с тем, что записано в вашем репозитории Hugging Face
 MODEL_FILE = "NekoSSV1_0-F32-LoRA.gguf"
 
 logger.info("Загружаю модель с Hugging Face...")
 model = AutoModelForCausalLM.from_pretrained(
     MODEL_REPO, 
-    model_file=MODEL_FILE,  # Заменили file_name на model_file
-    model_type="llama"
+    model_file=MODEL_FILE, 
+    model_type="llama"[cite: 3]
 )
 logger.info("✓ Модель успешно загружена!")
 
