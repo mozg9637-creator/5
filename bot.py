@@ -15,11 +15,17 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 if not TELEGRAM_TOKEN:
     raise RuntimeError("Не задан TELEGRAM_TOKEN")
 
-# Загружаем вашу модель[cite: 2]
-MODEL_PATH = "NekoSSV1_0-F32-LoRA.gguf"
-logger.info("Загружаю NekoSSVv1.0...")
-model = AutoModelForCausalLM.from_pretrained(MODEL_PATH, model_type="mistral")
-logger.info("✓ Модель готова!")
+# Настройки для загрузки модели с Hugging Face
+MODEL_REPO = "fdvvfgr/dsvevf"[cite: 3]
+MODEL_FILE = "NekoSSV1_0-F32-LoRA.gguf"
+
+logger.info("Загружаю модель с Hugging Face...")
+model = AutoModelForCausalLM.from_pretrained(
+    MODEL_REPO, 
+    file_name=MODEL_FILE, 
+    model_type="llama"[cite: 3]
+)
+logger.info("✓ Модель успешно загружена!")
 
 SYSTEM_PROMPT = "Ты дружелюбный ассистент в Telegram. Отвечай кратко и по делу."
 chat_histories = {}
@@ -40,7 +46,7 @@ def run_health_server():
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_histories[update.effective_chat.id] = []
-    await update.message.reply_text("Привет! Я NekoSSVv1.0 🚀\n/reset — очистить историю")
+    await update.message.reply_text("Привет! Я бот с локальной моделью 🚀\n/reset — очистить историю")
 
 async def reset(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_histories[update.effective_chat.id] = []
