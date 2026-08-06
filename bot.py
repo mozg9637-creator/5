@@ -15,16 +15,14 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 if not TELEGRAM_TOKEN:
     raise RuntimeError("Не задан TELEGRAM_TOKEN")
 
-# Настройки для загрузки модели с Hugging Face
-MODEL_REPO = "fdvvfgr/dsvevf"[cite: 3]
-# Убедитесь, что имя файла в кавычках полностью совпадает с тем, что записано в вашем репозитории Hugging Face
+MODEL_REPO = "fdvvfgr/dsvevf"
 MODEL_FILE = "NekoSSV1_0-F32-LoRA.gguf"
 
 logger.info("Загружаю модель с Hugging Face...")
 model = AutoModelForCausalLM.from_pretrained(
     MODEL_REPO, 
     model_file=MODEL_FILE, 
-    model_type="llama"[cite: 3]
+    model_type="llama"
 )
 logger.info("✓ Модель успешно загружена!")
 
@@ -59,7 +57,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     history = chat_histories.setdefault(chat_id, [])
     history.append(user_text)
-    history = history[-10:]  # последние 10 сообщений[cite: 2]
+    history = history[-10:]
 
     try:
         await context.bot.send_chat_action(chat_id=chat_id, action="typing")
