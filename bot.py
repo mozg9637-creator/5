@@ -34,14 +34,12 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 if not TELEGRAM_TOKEN:
     raise RuntimeError("Не задан TELEGRAM_TOKEN")
 
-# 2. Теперь загружаем модель (сервер уже работает и держит порт открытым)
-MODEL_REPO = "fdvvfgr/dsvevf"
-MODEL_FILE = "NekoSSV1_0-F32-LoRA.gguf"
+# 2. Загружаем модель локально из файла, который лежит рядом с bot.py
+MODEL_PATH = "NekoSSV1_0-F32-LoRA.gguf"
 
-logger.info("Загружаю модель с Hugging Face...")
+logger.info("Загружаю локальную модель...")
 model = AutoModelForCausalLM.from_pretrained(
-    MODEL_REPO, 
-    model_file=MODEL_FILE, 
+    MODEL_PATH, 
     model_type="llama"
 )
 logger.info("✓ Модель успешно загружена!")
