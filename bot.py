@@ -11,10 +11,30 @@ load_dotenv()
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# 1. Сразу поднимаем веб-сервер для Render, чтобы порт открылся моментально
+class HealthCheckHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-type", "text/plain")
+        self.end_headers()
+        self.wfile.write(b"Bot is running")
+    def log_message(self, format, *args):
+        pass
+
+def run_health_server():
+    port = int(os.getenv("PORT", 10000))
+    server = HTTPServer(("0.0.0.0", port), HealthCheckHandler)
+    logger.info(f"Health-check сервер запущен на порту {port}")
+    server.serve_forever()
+
+# Запускаем сервер в фоновом потоке до загрузки модели
+threading.Thread(target=run_health_server, daemon=True).start()
+
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 if not TELEGRAM_TOKEN:
     raise RuntimeError("Не задан TELEGRAM_TOKEN")
 
+# 2. Теперь загружаем модель (сервер уже работает и держит порт открытым)
 MODEL_REPO = "fdvvfgr/dsvevf"
 MODEL_FILE = "NekoSSV1_0-F32-LoRA.gguf"
 
@@ -28,20 +48,6 @@ logger.info("✓ Модель успешно загружена!")
 
 SYSTEM_PROMPT = "Ты дружелюбный ассистент в Telegram. Отвечай кратко и по делу."
 chat_histories = {}
-
-class HealthCheckHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.send_header("Content-type", "text/plain")
-        self.end_headers()
-        self.wfile.write(b"Bot is running")
-    def log_message(self, format, *args):
-        pass
-
-def run_health_server():
-    port = int(os.getenv("PORT", 10000))
-    server = HTTPServer(("0.0.0.0", port), HealthCheckHandler)
-    server.serve_forever()
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_histories[update.effective_chat.id] = []
@@ -75,8 +81,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     await update.message.reply_text(reply_text)
 
 def main() -> None:
-    threading.Thread(target=run_health_server, daemon=True).start()
-
     app = Application.builder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("reset", reset))
